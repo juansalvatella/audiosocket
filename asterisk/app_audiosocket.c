@@ -381,7 +381,13 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
       f->delivery.tv_sec = 0;
       f->delivery.tv_usec = 0;
       if (f->frametype != AST_FRAME_VOICE) {
-         ast_verbose("Ignoring non-voice frame\n");
+         ast_verbose("Sending non-voice frame to handle silence\n");
+	 // Send audio frame to audiosocket
+         if(audiosocket_send_frame(svc, f)) {
+            ast_log(LOG_ERROR, "Failed to forward channel frame to audiosocket\n");
+            ast_frfree(f);
+            return 1;
+         }
       } else {
 
          // Send audio frame to audiosocket
