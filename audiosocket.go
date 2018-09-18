@@ -126,6 +126,11 @@ func HangupMessage() Message {
 	return []byte{KindHangup, 0x00, 0x00}
 }
 
+// SilenceMessage creates a new Message indicating a silence
+func SilenceMessage() Message {
+	return []byte{KindSilence, 0x00, 0x00}
+}
+
 // IDMessage creates a new Message
 func IDMessage(id uuid.UUID) Message {
 	out := make([]byte, 3, 3+16)

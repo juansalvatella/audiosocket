@@ -70,6 +70,7 @@ static const char app[] = "AudioSocket";
 static int audiosocket_exec(struct ast_channel *chan, const char *data);
 static int handle_audiosocket_connection(const char *server, const struct ast_sockaddr addr, const int netsockfd);
 static int audiosocket_init(const uuid_t id, const int svc);
+static int audiosocket_send_silence(const int svc);
 static int audiosocket_send_frame(const int svc, const struct ast_frame *f);
 static int audiosocket_forward_frame(const int svc, struct ast_channel *chan);
 static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int svc);
@@ -217,6 +218,24 @@ static int audiosocket_init(const uuid_t id, const int svc) {
 
    ast_free(buf);
    return ret;
+}
+
+static int audiosocket_send_silence(const int svc) {
+    int ret = 0;
+    uint8_t *buf = ast_malloc(3);
+
+    buf[0] = 0x02;
+    buf[1] = 0x00;
+    buf[2] = 0x00;
+    
+    if(write(svc, buf, 3) != 3) {
+        ast_log(LOG_WARNING, "Failed to write data to audiosocket");
+        ret = 1;
+    }
+    ast_verbose("wrote silence packet\n");
+
+    ast_free(buf);
+    return ret;
 }
 
 static int audiosocket_send_frame(const int svc, const struct ast_frame *f) {
@@ -373,18 +392,24 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
       }
 
 	struct ast_frame *f = ast_read(chan);
-      if(!f) {
-         ast_log(LOG_WARNING, "No frame received\n");
-         return 1;
-      }
+        if(!f) {
+            ast_log(LOG_WARNING, "No frame received\n");
+            return 1;
+        }
 
-      f->delivery.tv_sec = 0;
-      f->delivery.tv_usec = 0;
-      if (f->frametype != AST_FRAME_VOICE) {
-         ast_verbose("Sending non-voice frame to handle silence\n");
-	   // Send silence frame to audiosocket
-         ast_frame_dump("silence",f,"");
-      } else {
+        f->delivery.tv_sec = 0;
+        f->delivery.tv_usec = 0;
+        if (f->frametype != AST_FRAME_VOICE) {
+            ast_verbose("Ignoring non-voice frame\n");
+        } else if(f->frametype == AST_FRAME_RTCP) {
+            // Send silence frame to audiosocket
+            ast_verbose("Sending silence packet to handle silence\n");
+            if(audiosocket_send_silence(svc)) {
+                ast_log(LOG_ERROR, "Failed to send silence packet to audiosocket\n");
+                ast_frfree(f);
+                return 1;
+            }
+        } else {
          // Send audio frame to audiosocket
          if(audiosocket_send_frame(svc, f)) {
             ast_log(LOG_ERROR, "Failed to forward channel frame to audiosocket\n");
