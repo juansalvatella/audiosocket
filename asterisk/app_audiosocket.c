@@ -267,7 +267,7 @@ static int audiosocket_forward_frame(const int svc, struct ast_channel *chan) {
 
    int i = 0, n = 0, ret = 0;;
    int not_audio = 0;
-	struct ast_frame f;
+   struct ast_frame f;
 
    uint8_t kind;
    uint8_t len_high;
@@ -382,13 +382,8 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
       f->delivery.tv_usec = 0;
       if (f->frametype != AST_FRAME_VOICE) {
          ast_verbose("Sending non-voice frame to handle silence\n");
-         ast_verbose("Silence frame type received: %d\n", f->frametype);
 	   // Send silence frame to audiosocket
-         if(audiosocket_send_frame(svc, f)) {
-            ast_log(LOG_ERROR, "Failed to forward silence frame to audiosocket\n");
-            ast_frfree(f);
-            return 1;
-         }
+         ast_frame_dump("silence",f,"");
       } else {
          // Send audio frame to audiosocket
          if(audiosocket_send_frame(svc, f)) {
