@@ -406,13 +406,6 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
                 ast_frfree(f);
                 return 1;
             }
-        } else if(f->frametype == AST_FRAME_RTCP) {
-            // Send silence packet to audiosocket
-            if(audiosocket_send_silence(svc)) {
-                ast_log(LOG_ERROR, "Failed to send silence packet to audiosocket\n");
-                ast_frfree(f);
-                return 1;
-            }
         } else {
             ast_verbose("Ignoring non-voice frame\n");
         }
