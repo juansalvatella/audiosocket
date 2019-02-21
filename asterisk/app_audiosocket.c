@@ -285,7 +285,7 @@ static uint16_t unpack_uint16be(uint8_t* src) {
 static int audiosocket_forward_frame(const int svc, struct ast_channel *chan) {
 
    int i = 0, n = 0, ret = 0;;
-   int not_audio = 0;
+   // int not_audio = 0;
    struct ast_frame f;
 
    uint8_t kind;
@@ -305,11 +305,11 @@ static int audiosocket_forward_frame(const int svc, struct ast_channel *chan) {
       ast_log(LOG_WARNING, "Failed to read type header from audiosocket\n");
       return 1;
    }
-   if (kind != 0x10) {
-      // read but ignore non-audio message
-      ast_log(LOG_WARNING, "Received non-audio audiosocket message\n");
-      not_audio = 1;
-   }
+   // if (kind != 0x10) {
+   //    // read but ignore non-audio message
+   //    ast_log(LOG_WARNING, "Received non-audio audiosocket message\n");
+   //    not_audio = 1;
+   // }
 
    n = read(svc, &len_high, 1);
    if (n != 1) {
@@ -351,21 +351,34 @@ static int audiosocket_forward_frame(const int svc, struct ast_channel *chan) {
       return ret;
    }
 
-   if(not_audio) {
-      return 0;
-   }
+   // if(not_audio) {
+   //    return 0;
+   // }
 
-	f = (struct ast_frame){
-		.frametype = AST_FRAME_VOICE,
-		.subclass.format = ast_format_slin,
-		.src = "AudioSocket",
-		.data.ptr = data,
-		.datalen = len,
-		.samples = len/2,
-      .mallocd = AST_MALLOCD_DATA,
-	};
-
-   return ast_write(chan, &f);
+   switch(kind) {
+      case 0x00:
+         ast_log(LOG_WARNING, "Terminate connection audiosocket message\n");
+         return 0;
+      case 0x01:
+         ast_log(LOG_WARNING, "Payload contains the UUID of the audio stream\n");
+         return 0;
+      case 0x10:
+         f = (struct ast_frame){
+            .frametype = AST_FRAME_VOICE,
+            .subclass.format = ast_format_slin,
+            .src = "AudioSocket",
+            .data.ptr = data,
+            .datalen = len,
+            .samples = len/2,
+            .mallocd = AST_MALLOCD_DATA,
+         };
+         return ast_write(chan, &f);
+      case 0x11:
+         return 0;
+      default:
+         ast_log(LOG_WARNING, "Type header not identified\n");
+         return 0;
+   } 
 }
 
 static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int svc) {
@@ -387,6 +400,7 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
         // Check channel state
         if( ast_channel_state(chan) != AST_STATE_UP ) {
             ast_verbose("Channel hung up\n");
+            // TBD: Send audiosocket message to indicate termination
             return 0;
         }
 
@@ -407,7 +421,7 @@ static int audiosocket_run(struct ast_channel *chan, const uuid_t id, const int 
                 return 1;
             }
         } else {
-            ast_verbose("Ignoring non-voice frame\n");
+            ast_verbose("Ignoring non-voice frame %d\n", f->frametype);
         }
 
         ast_frfree(f);
