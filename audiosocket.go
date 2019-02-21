@@ -70,6 +70,12 @@ func (m Message) ErrorCode() ErrorCode {
 	if m.Kind() != KindError {
 		return ErrNone
 	}
+<<<<<<< HEAD
+=======
+
+	// FIXME: TBD
+	return ErrorCode(m[3])
+>>>>>>> 320309e78b611c91ec1445d72c3d751347997755
 }
 
 // Payload returns the data of the payload of the message
